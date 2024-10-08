@@ -11,6 +11,7 @@ SnipItConsole.autoScroll     = true
 local scriptText             = ""
 local captureOutput          = false
 local execRequested          = false
+local showTimestamps         = true
 local execCoroutine          = nil
 local status                 = "Idle..."
 
@@ -20,7 +21,7 @@ local function LogToConsole(output, ...)
     local now = os.date('%H:%M:%S')
 
     if SnipItConsole ~= nil then
-        local consoleText = string.format('\aw[\at%s\aw] \ao%s', now, output)
+        local consoleText = showTimestamps and string.format('\aw[\at%s\aw] \ao%s', now, output) or string.format("\ao%s", output)
         SnipItConsole:AppendText(consoleText)
     end
 end
@@ -80,26 +81,64 @@ local function RenderTooltip(text)
         ImGui.SetTooltip(text)
     end
 end
+
+local function CenteredButton(label)
+    local style = ImGui.GetStyle()
+
+    local framePaddingX = style.FramePadding.x * 2
+    local framePaddingY = style.FramePadding.y * 2
+
+    local availableWidth = ImGui.GetContentRegionAvailVec().x
+    local availableHeight = 30
+
+    local textSizeVec = ImGui.CalcTextSizeVec(label)
+    local textWidth = textSizeVec.x
+    local textHeight = textSizeVec.y
+
+    local paddingX = (availableWidth - textWidth - framePaddingX) / 2
+    local paddingY = (availableHeight - textHeight - framePaddingY) / 2
+
+    if paddingX > 0 then
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + paddingX)
+    end
+    if paddingY > 0 then
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + paddingY)
+    end
+    return ImGui.SmallButton(string.format("%s", label))
+end
+
 local function RenderToolbar()
-    if ImGui.SmallButton(Icons.MD_PLAY_ARROW) then
-        execRequested = true
-    end
-    RenderTooltip("Execute Script")
+    if ImGui.BeginTable("##SnipItToolbar", 5, ImGuiTableFlags.Borders) then
+        ImGui.TableSetupColumn("##SnipItToolbarCol1", ImGuiTableColumnFlags.WidthFixed, 30)
+        ImGui.TableSetupColumn("##SnipItToolbarCol2", ImGuiTableColumnFlags.WidthFixed, 30)
+        ImGui.TableSetupColumn("##SnipItToolbarCol3", ImGuiTableColumnFlags.WidthFixed, 30)
+        ImGui.TableSetupColumn("##SnipItToolbarCol4", ImGuiTableColumnFlags.WidthFixed, 180)
+        ImGui.TableSetupColumn("##SnipItToolbarCol5", ImGuiTableColumnFlags.WidthStretch, 200)
+        ImGui.TableNextColumn()
 
-    ImGui.SameLine()
-    if ImGui.SmallButton(Icons.MD_CLEAR) then
-        scriptText = ""
-    end
-    RenderTooltip("Clear Script")
+        if CenteredButton(Icons.MD_PLAY_ARROW) then
+            execRequested = true
+        end
+        RenderTooltip("Execute Script")
 
-    ImGui.SameLine()
-    if ImGui.SmallButton(Icons.MD_PHONELINK_ERASE) then
-        SnipItConsole:Clear()
-    end
-    RenderTooltip("Clear Console")
+        ImGui.TableNextColumn()
+        if CenteredButton(Icons.MD_CLEAR) then
+            scriptText = ""
+        end
+        RenderTooltip("Clear Script")
 
-    ImGui.SameLine()
-    ImGui.Text("Status: " .. status)
+        ImGui.TableNextColumn()
+        if CenteredButton(Icons.MD_PHONELINK_ERASE) then
+            SnipItConsole:Clear()
+        end
+        RenderTooltip("Clear Console")
+
+        ImGui.TableNextColumn()
+        showTimestamps = ImGui.Checkbox("Print Time Stamps", showTimestamps)
+        ImGui.TableNextColumn()
+        ImGui.Text("Status: " .. status)
+        ImGui.EndTable()
+    end
 end
 
 local function SnipItGUI()
@@ -108,9 +147,7 @@ local function SnipItGUI()
 
     ImGui.Begin("Lua SnipIt - By: Derple", openGUI, ImGuiWindowFlags.None)
     RenderEditor()
-    ImGui.Separator()
     RenderToolbar()
-    ImGui.Separator()
     RenderConsole()
     ImGui.End()
 end
@@ -119,6 +156,8 @@ mq.imgui.init('SnipItGUI', SnipItGUI)
 mq.bind('/snipit', function()
     openGUI = not openGUI
 end)
+
+LogToConsole("\awSnipIt by: \amDerple \awLoaded...")
 
 while true do
     if execRequested then
