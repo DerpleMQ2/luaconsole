@@ -181,5 +181,5 @@ while openGUI do
         status = "Idle..."
     end
 
-    mq.delay(1000)
+    mq.delay(10)
 end
