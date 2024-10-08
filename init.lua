@@ -15,6 +15,9 @@ local showTimestamps         = true
 local execCoroutine          = nil
 local status                 = "Idle..."
 
+local openGUI                = true
+local shouldDrawGUI          = true
+
 local function LogToConsole(output, ...)
     if (... ~= nil) then output = string.format(output, ...) end
 
@@ -145,10 +148,12 @@ local function SnipItGUI()
     ImGui.SetNextWindowSize(ImVec2(800, 600), ImGuiCond.FirstUseEver)
     ImGui.SetNextWindowPos(ImVec2(ImGui.GetIO().DisplaySize.x / 2 - 400, ImGui.GetIO().DisplaySize.y / 2 - 300), ImGuiCond.FirstUseEver)
 
-    ImGui.Begin("Lua SnipIt - By: Derple", openGUI, ImGuiWindowFlags.None)
-    RenderEditor()
-    RenderToolbar()
-    RenderConsole()
+    openGUI, shouldDrawGUI = ImGui.Begin("Lua SnipIt - By: Derple", openGUI, ImGuiWindowFlags.None)
+    if shouldDrawGUI then
+        RenderEditor()
+        RenderToolbar()
+        RenderConsole()
+    end
     ImGui.End()
 end
 
@@ -159,7 +164,7 @@ end)
 
 LogToConsole("\awSnipIt by: \amDerple \awLoaded...")
 
-while true do
+while openGUI do
     if execRequested then
         execRequested = false
         execCoroutine = ExecCoroutine()
