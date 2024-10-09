@@ -1,39 +1,39 @@
-local mq                     = require('mq')
-local ImGui                  = require('ImGui')
-local Icons                  = require('mq.ICONS')
+local mq                  = require('mq')
+local ImGui               = require('ImGui')
+local Icons               = require('mq.ICONS')
 
-local openGUI                = true
+local openGUI             = true
 
-local SnipItConsole          = ImGui.ConsoleWidget.new("##SnipItConsole")
-SnipItConsole.maxBufferLines = 1000
-SnipItConsole.autoScroll     = true
+local LuaConsole          = ImGui.ConsoleWidget.new("##LuaConsole")
+LuaConsole.maxBufferLines = 1000
+LuaConsole.autoScroll     = true
 
-local scriptText             = ""
-local captureOutput          = false
-local execRequested          = false
-local showTimestamps         = true
-local execCoroutine          = nil
-local status                 = "Idle..."
+local scriptText          = ""
+local captureOutput       = false
+local execRequested       = false
+local showTimestamps      = true
+local execCoroutine       = nil
+local status              = "Idle..."
 
-local openGUI                = true
-local shouldDrawGUI          = true
+local openGUI             = true
+local shouldDrawGUI       = true
 
 local function LogToConsole(output, ...)
     if (... ~= nil) then output = string.format(output, ...) end
 
     local now = os.date('%H:%M:%S')
 
-    if SnipItConsole ~= nil then
+    if LuaConsole ~= nil then
         local consoleText = showTimestamps and string.format('\aw[\at%s\aw] \ao%s', now, output) or string.format("\ao%s", output)
-        SnipItConsole:AppendText(consoleText)
+        LuaConsole:AppendText(consoleText)
     end
 end
 
-mq.event("SnipItEvent", "#*#", function(output)
+mq.event("LuaConsoleEvent", "#*#", function(output)
     if captureOutput then
         LogToConsole(output)
     end
-    mq.flushevents("SnipItEvent")
+    mq.flushevents("LuaConsoleEvent")
 end)
 
 local function ExecCoroutine()
@@ -52,7 +52,7 @@ function Exec()
         %s
         ]]
 
-    local func, err = load(string.format(runEnv, scriptText), "SnipItScript", "t", _G)
+    local func, err = load(string.format(runEnv, scriptText), "LuaConsoleScript", "t", _G)
 
     if not func then
         return false, err
@@ -65,7 +65,7 @@ end
 
 local function RenderConsole()
     local contentSizeX, contentSizeY = ImGui.GetContentRegionAvail()
-    SnipItConsole:Render(ImVec2(contentSizeX, math.max(200, (contentSizeY - 10))))
+    LuaConsole:Render(ImVec2(contentSizeX, math.max(200, (contentSizeY - 10))))
 end
 
 local function RenderEditor()
@@ -111,12 +111,12 @@ local function CenteredButton(label)
 end
 
 local function RenderToolbar()
-    if ImGui.BeginTable("##SnipItToolbar", 5, ImGuiTableFlags.Borders) then
-        ImGui.TableSetupColumn("##SnipItToolbarCol1", ImGuiTableColumnFlags.WidthFixed, 30)
-        ImGui.TableSetupColumn("##SnipItToolbarCol2", ImGuiTableColumnFlags.WidthFixed, 30)
-        ImGui.TableSetupColumn("##SnipItToolbarCol3", ImGuiTableColumnFlags.WidthFixed, 30)
-        ImGui.TableSetupColumn("##SnipItToolbarCol4", ImGuiTableColumnFlags.WidthFixed, 180)
-        ImGui.TableSetupColumn("##SnipItToolbarCol5", ImGuiTableColumnFlags.WidthStretch, 200)
+    if ImGui.BeginTable("##LuaConsoleToolbar", 5, ImGuiTableFlags.Borders) then
+        ImGui.TableSetupColumn("##LuaConsoleToolbarCol1", ImGuiTableColumnFlags.WidthFixed, 30)
+        ImGui.TableSetupColumn("##LuaConsoleToolbarCol2", ImGuiTableColumnFlags.WidthFixed, 30)
+        ImGui.TableSetupColumn("##LuaConsoleToolbarCol3", ImGuiTableColumnFlags.WidthFixed, 30)
+        ImGui.TableSetupColumn("##LuaConsoleToolbarCol4", ImGuiTableColumnFlags.WidthFixed, 180)
+        ImGui.TableSetupColumn("##LuaConsoleToolbarCol5", ImGuiTableColumnFlags.WidthStretch, 200)
         ImGui.TableNextColumn()
 
         if CenteredButton(Icons.MD_PLAY_ARROW) then
@@ -132,7 +132,7 @@ local function RenderToolbar()
 
         ImGui.TableNextColumn()
         if CenteredButton(Icons.MD_PHONELINK_ERASE) then
-            SnipItConsole:Clear()
+            LuaConsole:Clear()
         end
         RenderTooltip("Clear Console")
 
@@ -144,11 +144,11 @@ local function RenderToolbar()
     end
 end
 
-local function SnipItGUI()
+local function LuaConsoleGUI()
     ImGui.SetNextWindowSize(ImVec2(800, 600), ImGuiCond.FirstUseEver)
     ImGui.SetNextWindowPos(ImVec2(ImGui.GetIO().DisplaySize.x / 2 - 400, ImGui.GetIO().DisplaySize.y / 2 - 300), ImGuiCond.FirstUseEver)
 
-    openGUI, shouldDrawGUI = ImGui.Begin("Lua SnipIt - By: Derple", openGUI, ImGuiWindowFlags.None)
+    openGUI, shouldDrawGUI = ImGui.Begin("Lua Console - By: Derple", openGUI, ImGuiWindowFlags.None)
     if shouldDrawGUI then
         RenderEditor()
         RenderToolbar()
@@ -157,12 +157,12 @@ local function SnipItGUI()
     ImGui.End()
 end
 
-mq.imgui.init('SnipItGUI', SnipItGUI)
-mq.bind('/snipit', function()
+mq.imgui.init('LuaConsoleGUI', LuaConsoleGUI)
+mq.bind('/lc', function()
     openGUI = not openGUI
 end)
 
-LogToConsole("\awSnipIt by: \amDerple \awLoaded...")
+LogToConsole("\awLua Console by: \amDerple \awLoaded...")
 
 while openGUI do
     if execRequested then
