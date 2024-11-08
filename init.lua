@@ -1,15 +1,15 @@
 local mq                  = require('mq')
 local ImGui               = require('ImGui')
 local Icons               = require('mq.ICONS')
+local Zep                 = require('Zep')
 
-local openGUI             = true
+local luaConsole          = Zep.Console.new("##LuaConsole")
+luaConsole.maxBufferLines = 1000
+luaConsole.autoScroll     = true
 
-local LuaConsole          = ImGui.ConsoleWidget.new("##LuaConsole")
-LuaConsole.maxBufferLines = 1000
-LuaConsole.autoScroll     = true
+local luaEditor           = Zep.Editor.new('##LuaEditor')
+local luaBuffer           = luaEditor:InitWithText("editor.lua", "")
 
-local scriptText          = ""
-local captureOutput       = false
 local execRequested       = false
 local showTimestamps      = true
 local execCoroutine       = nil
@@ -17,66 +17,77 @@ local status              = "Idle..."
 
 local openGUI             = true
 local shouldDrawGUI       = true
+local CHANNEL_COLOR       = IM_COL32(215, 154, 66)
 
-local function LogToConsole(output, ...)
-    if (... ~= nil) then output = string.format(output, ...) end
-
-    local now = os.date('%H:%M:%S')
-
-    if LuaConsole ~= nil then
-        local consoleText = showTimestamps and string.format('\aw[\at%s\aw] \ao%s', now, output) or string.format("\ao%s", output)
-        LuaConsole:AppendText(consoleText)
+local function LogTimestamp()
+    if showTimestamps then
+        local now = os.date('%H:%M:%S')
+        luaConsole:AppendTextUnformatted(string.format('\aw[\at%s\aw] ', now))
     end
 end
 
-mq.event("LuaConsoleEvent", "#*#", function(output)
-    if captureOutput then
-        LogToConsole(output)
+local function LogToConsole(...)
+    LogTimestamp()
+    luaConsole:AppendText(CHANNEL_COLOR, ...)
+end
+
+local function Exec(scriptText)
+    local func, err = load(scriptText, "LuaConsoleScript", "t")
+    if not func then
+        return false, err
     end
-    mq.flushevents("LuaConsoleEvent")
-end)
+
+    local locals = setmetatable({}, { __index = _G, })
+    locals.mq = setmetatable({}, { __index = mq, })
+
+    locals.print = function(...)
+        LogTimestamp()
+        luaConsole:PushStyleColor(Zep.ConsoleCol.Text, CHANNEL_COLOR)
+        for _, arg in ipairs({ ..., }) do
+            luaConsole:AppendTextUnformatted(tostring(arg))
+        end
+        luaConsole:AppendTextUnformatted('\n')
+        luaConsole:PopStyleColor()
+    end
+    locals.printf = function(text, ...)
+        LogTimestamp()
+        luaConsole:AppendText(CHANNEL_COLOR, text, ...)
+    end
+
+    locals.mq.exit = function()
+        execCoroutine = nil
+    end
+
+    locals.hi = 3
+
+    setfenv(func, locals)
+
+    local success, msg = pcall(func)
+    return success, msg or ""
+end
 
 local function ExecCoroutine()
-    captureOutput = true
+    local scriptText = luaBuffer:GetText()
 
     return coroutine.create(function()
-        local success, msg = Exec()
+        local success, msg = Exec(scriptText)
         if not success then
             LogToConsole("\ar" .. msg)
         end
     end)
 end
 
-function Exec()
-    local runEnv = [[mq = require('mq')
-        %s
-        ]]
-
-    local func, err = load(string.format(runEnv, scriptText), "LuaConsoleScript", "t", _G)
-
-    if not func then
-        return false, err
-    end
-
-    local success, msg = pcall(func)
-
-    return success, msg or ""
-end
-
 local function RenderConsole()
     local contentSizeX, contentSizeY = ImGui.GetContentRegionAvail()
-    LuaConsole:Render(ImVec2(contentSizeX, math.max(200, (contentSizeY - 10))))
+    luaConsole:Render(ImVec2(contentSizeX, math.max(200, (contentSizeY - 10))))
 end
 
 local function RenderEditor()
-    ImGui.PushFont(ImGui.ConsoleFont)
     local yPos = ImGui.GetCursorPosY()
     local footerHeight = 35
     local editHeight = (ImGui.GetWindowHeight() * .5) - yPos - footerHeight
 
-    scriptText, _ = ImGui.InputTextMultiline("##_Cmd_Edit", scriptText,
-        ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight), ImGuiInputTextFlags.AllowTabInput)
-    ImGui.PopFont()
+    luaEditor:Render(ImVec2(ImGui.GetWindowWidth() * 0.98, editHeight))
 end
 
 local function RenderTooltip(text)
@@ -119,20 +130,27 @@ local function RenderToolbar()
         ImGui.TableSetupColumn("##LuaConsoleToolbarCol5", ImGuiTableColumnFlags.WidthStretch, 200)
         ImGui.TableNextColumn()
 
-        if CenteredButton(Icons.MD_PLAY_ARROW) then
-            execRequested = true
+        if execCoroutine and coroutine.status(execCoroutine) ~= 'dead' then
+            if CenteredButton(Icons.MD_STOP) then
+                execCoroutine = nil
+            end
+            RenderTooltip("Stop Script")
+        else
+            if CenteredButton(Icons.MD_PLAY_ARROW) then
+                execRequested = true
+            end
+            RenderTooltip("Execute Script")
         end
-        RenderTooltip("Execute Script")
 
         ImGui.TableNextColumn()
         if CenteredButton(Icons.MD_CLEAR) then
-            scriptText = ""
+            luaBuffer:SetText("")
         end
         RenderTooltip("Clear Script")
 
         ImGui.TableNextColumn()
         if CenteredButton(Icons.MD_PHONELINK_ERASE) then
-            LuaConsole:Clear()
+            luaConsole:Clear()
         end
         RenderTooltip("Clear Console")
 
@@ -150,6 +168,10 @@ local function LuaConsoleGUI()
 
     openGUI, shouldDrawGUI = ImGui.Begin("Lua Console - By: Derple", openGUI, ImGuiWindowFlags.None)
     if shouldDrawGUI then
+        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.Enter))) then
+            execRequested = true
+        end
+
         RenderEditor()
         RenderToolbar()
         RenderConsole()
@@ -172,12 +194,10 @@ while openGUI do
         status = "Running..."
     end
 
-    mq.doevents()
-
     if execCoroutine and coroutine.status(execCoroutine) ~= 'dead' then
         coroutine.resume(execCoroutine)
     else
-        captureOutput = false
+        execCoroutine = nil
         status = "Idle..."
     end
 
