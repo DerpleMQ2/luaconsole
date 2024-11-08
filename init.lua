@@ -19,6 +19,20 @@ local openGUI             = true
 local shouldDrawGUI       = true
 local CHANNEL_COLOR       = IM_COL32(215, 154, 66)
 
+local settings_path       = mq.configDir .. '/luaconsole_settings.lua'
+
+local function LoadSettings()
+    local settings, err = loadfile(settings_path)
+    if not err and settings then
+        luaBuffer:SetText(settings().editbox)
+    end
+end
+
+local function SaveSettings()
+    mq.pickle(settings_path, { editbox = luaBuffer:GetText(), })
+end
+
+
 local function LogTimestamp()
     if showTimestamps then
         local now = os.date('%H:%M:%S')
@@ -49,6 +63,7 @@ local function Exec(scriptText)
         luaConsole:AppendTextUnformatted('\n')
         luaConsole:PopStyleColor()
     end
+
     locals.printf = function(text, ...)
         LogTimestamp()
         luaConsole:AppendText(CHANNEL_COLOR, text, ...)
@@ -60,6 +75,7 @@ local function Exec(scriptText)
 
     locals.hi = 3
 
+    ---@diagnostic disable-next-line: deprecated
     setfenv(func, locals)
 
     local success, msg = pcall(func)
@@ -139,7 +155,7 @@ local function RenderToolbar()
             if CenteredButton(Icons.MD_PLAY_ARROW) then
                 execRequested = true
             end
-            RenderTooltip("Execute Script")
+            RenderTooltip("Execute Script (Ctrl+Enter)")
         end
 
         ImGui.TableNextColumn()
@@ -168,6 +184,7 @@ local function LuaConsoleGUI()
 
     openGUI, shouldDrawGUI = ImGui.Begin("Lua Console - By: Derple", openGUI, ImGuiWindowFlags.None)
     if shouldDrawGUI then
+        ---@diagnostic disable-next-line: param-type-mismatch
         if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.Enter))) then
             execRequested = true
         end
@@ -186,6 +203,8 @@ end)
 
 LogToConsole("\awLua Console by: \amDerple \awLoaded...")
 
+LoadSettings()
+
 while openGUI do
     if execRequested then
         execRequested = false
@@ -201,5 +220,12 @@ while openGUI do
         status = "Idle..."
     end
 
+    if luaBuffer:HasFlag(Zep.BufferFlags.Dirty) then
+        SaveSettings()
+        luaBuffer:ClearFlags(Zep.BufferFlags.Dirty)
+    end
+
     mq.delay(10)
 end
+
+SaveSettings()
