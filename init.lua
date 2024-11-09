@@ -75,7 +75,6 @@ local function Exec(scriptText)
 
     locals.hi = 3
 
-    ---@diagnostic disable-next-line: deprecated
     setfenv(func, locals)
 
     local success, msg = pcall(func)
@@ -184,8 +183,7 @@ local function LuaConsoleGUI()
 
     openGUI, shouldDrawGUI = ImGui.Begin("Lua Console - By: Derple", openGUI, ImGuiWindowFlags.None)
     if shouldDrawGUI then
-        ---@diagnostic disable-next-line: param-type-mismatch
-        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.Enter))) then
+        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyChordPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.Enter))) then
             execRequested = true
         end
 
