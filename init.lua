@@ -8,7 +8,8 @@ luaConsole.maxBufferLines = 1000
 luaConsole.autoScroll     = true
 
 local luaEditor           = Zep.Editor.new('##LuaEditor')
-local luaBuffer           = luaEditor:InitWithText("editor.lua", "")
+local luaBuffer           = luaEditor:CreateBuffer("[LuaConsole]")
+luaBuffer.syntax = 'lua'
 
 local execRequested       = false
 local showTimestamps      = true
@@ -159,7 +160,7 @@ local function RenderToolbar()
 
         ImGui.TableNextColumn()
         if CenteredButton(Icons.MD_CLEAR) then
-            luaBuffer:SetText("")
+            luaBuffer:Clear()
         end
         RenderTooltip("Clear Script")
 
