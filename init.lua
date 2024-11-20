@@ -8,7 +8,7 @@ luaConsole.maxBufferLines = 1000
 luaConsole.autoScroll     = true
 
 local luaEditor           = Zep.Editor.new('##LuaEditor')
-local luaBuffer           = luaEditor:InitWithText("editor.lua", "")
+local luaBuffer           = luaEditor:CreateBuffer("editor.lua", "")
 
 local execRequested       = false
 local showTimestamps      = true
