@@ -9,7 +9,7 @@ luaConsole.autoScroll     = true
 
 local luaEditor           = Zep.Editor.new('##LuaEditor')
 local luaBuffer           = luaEditor:CreateBuffer("[LuaConsole]")
-luaBuffer.syntax = 'lua'
+luaBuffer.syntax          = 'lua'
 
 local execRequested       = false
 local showTimestamps      = true
@@ -184,7 +184,7 @@ local function LuaConsoleGUI()
 
     openGUI, shouldDrawGUI = ImGui.Begin("Lua Console - By: Derple", openGUI, ImGuiWindowFlags.None)
     if shouldDrawGUI then
-        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyChordPressed(ImGuiMod.Ctrl) and ImGui.IsKeyPressed(ImGuiKey.Enter))) then
+        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows) and (ImGui.IsKeyChordPressed(bit32.bor(ImGuiMod.Ctrl, ImGuiKey.Enter)))) then
             execRequested = true
         end
 
